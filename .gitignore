@@ -1,0 +1,25 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Uploaded documents (kept out of git)
+uploads/
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# Tesseract / OCR temp files
+test_sample.png
+
+# ChromaDB local storage
+chroma_db/
+
+# Python cache
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
