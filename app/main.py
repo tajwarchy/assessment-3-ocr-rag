@@ -14,7 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.ocr import process_file
+from app.ocr      import process_file
+from app.chunker  import chunk_pages
+from app.embedder import embed_texts
+from app.database import store_chunks, list_documents, get_collection
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 UPLOAD_DIR = Path("uploads")
@@ -35,7 +38,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve the frontend HTML at "/"
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 
@@ -44,19 +46,19 @@ def serve_frontend():
     return FileResponse("index.html")
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
 @app.get("/health")
 def health():
-    return {"status": "ok", "message": "OCR & RAG backend is running."}
+    col = get_collection()
+    return {
+        "status": "ok",
+        "message": "OCR & RAG backend is running.",
+        "total_chunks_in_db": col.count(),
+    }
 
 
-# ── Upload & OCR endpoint ─────────────────────────────────────────────────────
+# ── Upload → OCR → Chunk → Embed → Store ─────────────────────────────────────
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """
-    Upload a PDF or image file.
-    Runs Tesseract OCR locally and returns extracted text + metadata.
-    """
     suffix = Path(file.filename).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -64,49 +66,68 @@ async def upload_document(file: UploadFile = File(...)):
             detail=f"Unsupported file type '{suffix}'. Allowed: {ALLOWED_EXTENSIONS}"
         )
 
-    # Save uploaded file with a unique name to avoid collisions
     unique_name = f"{uuid.uuid4().hex}{suffix}"
-    save_path = UPLOAD_DIR / unique_name
+    save_path   = UPLOAD_DIR / unique_name
+    doc_type    = "pdf" if suffix == ".pdf" else "image"
+    upload_date = datetime.utcnow().isoformat()
 
-    print(f"\n[UPLOAD] Received: {file.filename} → saving as {unique_name}")
+    print(f"\n[UPLOAD] {file.filename} → {unique_name}")
 
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Run OCR locally
-    print(f"[OCR] Starting local OCR on {unique_name}...")
+    # 1. OCR
+    print("[OCR] Running local Tesseract OCR...")
     try:
-        result = process_file(str(save_path))
+        ocr_result = process_file(str(save_path))
     except Exception as e:
-        # Clean up saved file on failure
         save_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {e}")
 
-    print(f"[OCR] Done. Language: {result['dominant_language']} | Pages: {result['total_pages']}")
+    print(f"[OCR] Done. Language: {ocr_result['dominant_language']} | Pages: {ocr_result['total_pages']}")
+
+    # 2. Chunk
+    print("[CHUNK] Splitting text into chunks...")
+    chunks = chunk_pages(ocr_result["pages"])
+    print(f"[CHUNK] {len(chunks)} chunks created.")
+
+    if not chunks:
+        raise HTTPException(status_code=422, detail="No text could be extracted from this document.")
+
+    # 3. Embed
+    print("[EMBED] Generating embeddings locally...")
+    texts      = [c["text"] for c in chunks]
+    embeddings = embed_texts(texts)
+    print(f"[EMBED] {len(embeddings)} embeddings generated.")
+
+    # 4. Store in ChromaDB
+    print("[DB] Storing chunks in ChromaDB...")
+    stored = store_chunks(
+        chunks=chunks,
+        embeddings=embeddings,
+        original_filename=file.filename,
+        stored_filename=unique_name,
+        dominant_language=ocr_result["dominant_language"],
+        upload_date=upload_date,
+        doc_type=doc_type,
+    )
+    print(f"[DB] Stored {stored} chunks.")
 
     return {
-        "status": "success",
-        "original_filename": file.filename,
-        "stored_as": unique_name,
-        "upload_date": datetime.utcnow().isoformat(),
-        "total_pages": result["total_pages"],
-        "dominant_language": result["dominant_language"],
-        "full_text": result["full_text"],
-        "pages": result["pages"],
+        "status":             "success",
+        "original_filename":  file.filename,
+        "stored_as":          unique_name,
+        "upload_date":        upload_date,
+        "total_pages":        ocr_result["total_pages"],
+        "dominant_language":  ocr_result["dominant_language"],
+        "chunks_stored":      stored,
+        "full_text":          ocr_result["full_text"],
+        "pages":              ocr_result["pages"],
     }
 
 
-# ── List uploaded files ───────────────────────────────────────────────────────
+# ── List documents (from ChromaDB) ────────────────────────────────────────────
 @app.get("/documents")
-def list_documents():
-    """List all uploaded files in the uploads/ directory."""
-    files = []
-    for f in UPLOAD_DIR.iterdir():
-        if f.suffix.lower() in ALLOWED_EXTENSIONS:
-            files.append({
-                "filename": f.name,
-                "size_kb": round(f.stat().st_size / 1024, 2),
-                "uploaded_at": datetime.utcfromtimestamp(f.stat().st_mtime).isoformat(),
-            })
-    files.sort(key=lambda x: x["uploaded_at"], reverse=True)
-    return {"total": len(files), "documents": files}
+def documents():
+    docs = list_documents()
+    return {"total": len(docs), "documents": docs}
