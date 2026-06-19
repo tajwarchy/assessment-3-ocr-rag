@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Local OCR & RAG System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #222; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 18px 32px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    header span { font-size: 0.85rem; opacity: 0.6; }
+
+    main { max-width: 860px; margin: 36px auto; padding: 0 20px; }
+
+    .card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 28px; margin-bottom: 28px;
+    }
+    .card h2 { font-size: 1.05rem; margin-bottom: 18px; color: #1a1a2e; }
+
+    /* Upload area */
+    #drop-zone {
+      border: 2px dashed #c0c8d8; border-radius: 8px;
+      padding: 40px 20px; text-align: center;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      color: #667;
+    }
+    #drop-zone.dragover { border-color: #4f8ef7; background: #eef3ff; }
+    #drop-zone p { margin-top: 8px; font-size: 0.9rem; }
+    #file-input { display: none; }
+
+    .btn {
+      display: inline-block; padding: 10px 22px;
+      background: #1a1a2e; color: #fff;
+      border: none; border-radius: 6px;
+      cursor: pointer; font-size: 0.95rem;
+      margin-top: 14px; transition: background 0.2s;
+    }
+    .btn:hover { background: #2e2e5e; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    #selected-file { margin-top: 12px; font-size: 0.9rem; color: #555; }
+
+    /* Status */
+    #status { margin-top: 14px; font-size: 0.9rem; }
+    .status-info    { color: #2563eb; }
+    .status-success { color: #16a34a; }
+    .status-error   { color: #dc2626; }
+
+    /* Result */
+    #result-box { display: none; margin-top: 20px; }
+    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; }
+    .meta-chip {
+      background: #f0f4ff; border-radius: 20px;
+      padding: 4px 14px; font-size: 0.82rem; color: #334;
+    }
+    .text-output {
+      background: #f8f9fb; border: 1px solid #e2e8f0;
+      border-radius: 6px; padding: 16px;
+      font-size: 0.88rem; line-height: 1.8;
+      white-space: pre-wrap; max-height: 340px; overflow-y: auto;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Documents list */
+    #doc-list { list-style: none; }
+    #doc-list li {
+      padding: 10px 0; border-bottom: 1px solid #eee;
+      font-size: 0.88rem; display: flex; justify-content: space-between;
+    }
+    #doc-list li:last-child { border-bottom: none; }
+    .doc-name { color: #1a1a2e; font-weight: 500; }
+    .doc-meta { color: #888; }
+
+    #refresh-btn { float: right; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📄 Local OCR & RAG System</h1>
+    <span>Assessment 3 — Multilingual Document Processing</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <h2>Upload Document</h2>
+
+    <div id="drop-zone">
+      <div style="font-size:2rem">📂</div>
+      <p>Drag & drop a PDF or image here, or click to browse</p>
+      <p style="font-size:0.8rem;margin-top:6px;color:#aaa">Supports: PDF, PNG, JPG, JPEG, TIFF</p>
+      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff" />
+    </div>
+
+    <div id="selected-file"></div>
+    <button class="btn" id="upload-btn" disabled>Run OCR</button>
+    <div id="status"></div>
+
+    <div id="result-box">
+      <h2 style="margin-top:20px;margin-bottom:12px">OCR Result</h2>
+      <div class="meta-row" id="meta-row"></div>
+      <div class="text-output" id="text-output"></div>
+    </div>
+  </div>
+
+  <!-- Documents Card -->
+  <div class="card">
+    <h2>Uploaded Documents <button class="btn" id="refresh-btn" style="float:right;margin-top:0;padding:6px 14px;font-size:0.82rem">↻ Refresh</button></h2>
+    <ul id="doc-list"><li style="color:#aaa">Loading...</li></ul>
+  </div>
+
+</main>
+
+<script>
+  const API = "http://localhost:8000";
+  const dropZone  = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+  const uploadBtn = document.getElementById("upload-btn");
+  const selFile   = document.getElementById("selected-file");
+  const statusEl  = document.getElementById("status");
+  const resultBox = document.getElementById("result-box");
+  const metaRow   = document.getElementById("meta-row");
+  const textOut   = document.getElementById("text-output");
+  const docList   = document.getElementById("doc-list");
+
+  let selectedFile = null;
+
+  // ── File selection ──────────────────────────────────────────────
+  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault(); dropZone.classList.remove("dragover");
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+  function setFile(f) {
+    selectedFile = f;
+    selFile.textContent = `Selected: ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+    uploadBtn.disabled = false;
+    statusEl.textContent = "";
+    resultBox.style.display = "none";
+  }
+
+  // ── Upload & OCR ─────────────────────────────────────────────────
+  uploadBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+
+    uploadBtn.disabled = true;
+    setStatus("Uploading and running local OCR… this may take a moment.", "info");
+    resultBox.style.display = "none";
+
+    const form = new FormData();
+    form.append("file", selectedFile);
+
+    try {
+      const res = await fetch(`${API}/upload`, { method: "POST", body: form });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+      setStatus(`✓ OCR complete — ${data.total_pages} page(s) processed.`, "success");
+
+      // Build meta chips
+      metaRow.innerHTML = [
+        `<span class="meta-chip">📄 ${data.original_filename}</span>`,
+        `<span class="meta-chip">🌐 ${data.dominant_language}</span>`,
+        `<span class="meta-chip">📑 ${data.total_pages} page(s)</span>`,
+        `<span class="meta-chip">🕒 ${data.upload_date.slice(0,19).replace("T"," ")} UTC</span>`,
+      ].join("");
+
+      textOut.textContent = data.full_text || "(No text detected)";
+      resultBox.style.display = "block";
+
+      loadDocs();
+    } catch (err) {
+      setStatus("✗ " + err.message, "error");
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  });
+
+  function setStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = `status-${type}`;
+  }
+
+  // ── Document list ─────────────────────────────────────────────────
+  async function loadDocs() {
+    docList.innerHTML = "<li style='color:#aaa'>Loading...</li>";
+    try {
+      const res  = await fetch(`${API}/documents`);
+      const data = await res.json();
+      if (data.total === 0) {
+        docList.innerHTML = "<li style='color:#aaa'>No documents uploaded yet.</li>";
+        return;
+      }
+      docList.innerHTML = data.documents.map(d => `
+        <li>
+          <span class="doc-name">${d.filename}</span>
+          <span class="doc-meta">${d.size_kb} KB · ${d.uploaded_at.slice(0,19).replace("T"," ")} UTC</span>
+        </li>
+      `).join("");
+    } catch {
+      docList.innerHTML = "<li style='color:#dc2626'>Could not load documents.</li>";
+    }
+  }
+
+  document.getElementById("refresh-btn").addEventListener("click", loadDocs);
+  loadDocs();
+</script>
+</body>
+</html>
