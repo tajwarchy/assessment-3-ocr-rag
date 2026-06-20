@@ -1,85 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Local OCR & RAG System</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #222; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f4f6f9;color:#222}
 
-    header {
-      background: #1a1a2e; color: #fff;
-      padding: 18px 32px;
-      display: flex; align-items: center; gap: 12px;
-    }
-    header h1 { font-size: 1.3rem; font-weight: 600; }
-    header span { font-size: 0.85rem; opacity: 0.6; }
+    header{background:#1a1a2e;color:#fff;padding:18px 32px;display:flex;align-items:center;gap:12px}
+    header h1{font-size:1.3rem;font-weight:600}
+    header span{font-size:.85rem;opacity:.6}
 
-    main { max-width: 860px; margin: 36px auto; padding: 0 20px; }
+    main{max-width:900px;margin:36px auto;padding:0 20px}
 
-    .card {
-      background: #fff; border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-      padding: 28px; margin-bottom: 28px;
-    }
-    .card h2 { font-size: 1.05rem; margin-bottom: 18px; color: #1a1a2e; }
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:28px;margin-bottom:28px}
+    .card h2{font-size:1.05rem;margin-bottom:18px;color:#1a1a2e}
 
-    /* Upload area */
-    #drop-zone {
-      border: 2px dashed #c0c8d8; border-radius: 8px;
-      padding: 40px 20px; text-align: center;
-      cursor: pointer; transition: border-color 0.2s, background 0.2s;
-      color: #667;
-    }
-    #drop-zone.dragover { border-color: #4f8ef7; background: #eef3ff; }
-    #drop-zone p { margin-top: 8px; font-size: 0.9rem; }
-    #file-input { display: none; }
+    /* Upload */
+    #drop-zone{border:2px dashed #c0c8d8;border-radius:8px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;color:#667}
+    #drop-zone.dragover{border-color:#4f8ef7;background:#eef3ff}
+    #drop-zone p{margin-top:8px;font-size:.9rem}
+    #file-input{display:none}
 
-    .btn {
-      display: inline-block; padding: 10px 22px;
-      background: #1a1a2e; color: #fff;
-      border: none; border-radius: 6px;
-      cursor: pointer; font-size: 0.95rem;
-      margin-top: 14px; transition: background 0.2s;
-    }
-    .btn:hover { background: #2e2e5e; }
-    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    .btn{display:inline-block;padding:10px 22px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.95rem;margin-top:14px;transition:.2s}
+    .btn:hover{background:#2e2e5e}
+    .btn:disabled{background:#aaa;cursor:not-allowed}
+    .btn-sm{padding:6px 14px;font-size:.82rem;margin-top:0}
 
-    #selected-file { margin-top: 12px; font-size: 0.9rem; color: #555; }
+    #selected-file{margin-top:12px;font-size:.9rem;color:#555}
+    #upload-status{margin-top:14px;font-size:.9rem}
 
-    /* Status */
-    #status { margin-top: 14px; font-size: 0.9rem; }
-    .status-info    { color: #2563eb; }
-    .status-success { color: #16a34a; }
-    .status-error   { color: #dc2626; }
+    .status-info   {color:#2563eb}
+    .status-success{color:#16a34a}
+    .status-error  {color:#dc2626}
 
-    /* Result */
-    #result-box { display: none; margin-top: 20px; }
-    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; }
-    .meta-chip {
-      background: #f0f4ff; border-radius: 20px;
-      padding: 4px 14px; font-size: 0.82rem; color: #334;
-    }
-    .text-output {
-      background: #f8f9fb; border: 1px solid #e2e8f0;
-      border-radius: 6px; padding: 16px;
-      font-size: 0.88rem; line-height: 1.8;
-      white-space: pre-wrap; max-height: 340px; overflow-y: auto;
-      font-family: 'Courier New', monospace;
-    }
+    #upload-result{display:none;margin-top:20px}
+    .meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .chip{background:#f0f4ff;border-radius:20px;padding:4px 14px;font-size:.82rem;color:#334}
+    .text-output{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:6px;padding:16px;font-size:.88rem;line-height:1.8;white-space:pre-wrap;max-height:280px;overflow-y:auto;font-family:'Courier New',monospace}
 
-    /* Documents list */
-    #doc-list { list-style: none; }
-    #doc-list li {
-      padding: 10px 0; border-bottom: 1px solid #eee;
-      font-size: 0.88rem; display: flex; justify-content: space-between;
-    }
-    #doc-list li:last-child { border-bottom: none; }
-    .doc-name { color: #1a1a2e; font-weight: 500; }
-    .doc-meta { color: #888; }
+    /* Search */
+    .filter-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .filter-row label{font-size:.82rem;color:#555;display:flex;flex-direction:column;gap:4px;min-width:140px}
+    .filter-row select{padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem;background:#fff}
 
-    #refresh-btn { float: right; }
+    #search-input{width:100%;padding:11px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem;margin-bottom:12px}
+    #search-input:focus{outline:none;border-color:#4f8ef7}
+
+    #search-status{font-size:.9rem;margin-top:10px}
+    #search-result{display:none;margin-top:20px}
+
+    .answer-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:18px;font-size:.92rem;line-height:1.8;margin-bottom:18px;white-space:pre-wrap}
+
+    .sources-title{font-size:.85rem;font-weight:600;color:#555;margin-bottom:10px}
+    .source-card{background:#f8f9fb;border:1px solid #e2e8f0;border-radius:6px;padding:12px;margin-bottom:8px;font-size:.82rem}
+    .source-card .source-meta{color:#888;margin-bottom:6px}
+    .source-card .source-text{color:#333;line-height:1.6;white-space:pre-wrap}
+    .score-badge{display:inline-block;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 8px;font-size:.76rem;margin-left:6px}
+
+    /* Docs list */
+    #doc-list{list-style:none}
+    #doc-list li{padding:10px 0;border-bottom:1px solid #eee;font-size:.88rem;display:flex;justify-content:space-between}
+    #doc-list li:last-child{border-bottom:none}
+    .doc-name{color:#1a1a2e;font-weight:500}
+    .doc-meta{color:#888}
   </style>
 </head>
 <body>
@@ -93,134 +78,247 @@
 
 <main>
 
-  <!-- Upload Card -->
+  <!-- Upload -->
   <div class="card">
-    <h2>Upload Document</h2>
-
+    <h2>📤 Upload Document</h2>
     <div id="drop-zone">
       <div style="font-size:2rem">📂</div>
-      <p>Drag & drop a PDF or image here, or click to browse</p>
-      <p style="font-size:0.8rem;margin-top:6px;color:#aaa">Supports: PDF, PNG, JPG, JPEG, TIFF</p>
-      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff" />
+      <p>Drag & drop a PDF or image, or click to browse</p>
+      <p style="font-size:.8rem;margin-top:6px;color:#aaa">Supports: PDF, PNG, JPG, JPEG, TIFF</p>
+      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff"/>
     </div>
-
     <div id="selected-file"></div>
-    <button class="btn" id="upload-btn" disabled>Run OCR</button>
-    <div id="status"></div>
-
-    <div id="result-box">
+    <button class="btn" id="upload-btn" disabled>Run OCR & Store</button>
+    <div id="upload-status"></div>
+    <div id="upload-result">
       <h2 style="margin-top:20px;margin-bottom:12px">OCR Result</h2>
-      <div class="meta-row" id="meta-row"></div>
-      <div class="text-output" id="text-output"></div>
+      <div class="meta-row" id="upload-meta"></div>
+      <div class="text-output" id="upload-text"></div>
     </div>
   </div>
 
-  <!-- Documents Card -->
+  <!-- Search -->
   <div class="card">
-    <h2>Uploaded Documents <button class="btn" id="refresh-btn" style="float:right;margin-top:0;padding:6px 14px;font-size:0.82rem">↻ Refresh</button></h2>
-    <ul id="doc-list"><li style="color:#aaa">Loading...</li></ul>
+    <h2>🔍 Search Documents</h2>
+
+    <div class="filter-row">
+      <label>Language
+        <select id="f-language">
+          <option value="any">Any</option>
+          <option value="bangla">Bangla</option>
+          <option value="english">English</option>
+          <option value="mixed">Mixed</option>
+        </select>
+      </label>
+      <label>Document Type
+        <select id="f-doctype">
+          <option value="any">Any</option>
+          <option value="pdf">PDF</option>
+          <option value="image">Image</option>
+        </select>
+      </label>
+      <label>Specific File
+        <select id="f-filename">
+          <option value="any">Any</option>
+        </select>
+      </label>
+    </div>
+
+    <input type="text" id="search-input" placeholder="Ask a question about your documents… (Bangla or English)"/>
+    <button class="btn" id="search-btn" style="background:#1a1a2e">Ask</button>
+    <div id="search-status"></div>
+
+    <div id="search-result">
+      <div class="answer-box" id="answer-box"></div>
+      <div class="sources-title">📎 Retrieved Sources</div>
+      <div id="sources-list"></div>
+    </div>
+  </div>
+
+  <!-- Documents -->
+  <div class="card">
+    <h2>🗂 Stored Documents <button class="btn btn-sm" id="refresh-btn" style="float:right">↻ Refresh</button></h2>
+    <ul id="doc-list"><li style="color:#aaa">Loading…</li></ul>
   </div>
 
 </main>
 
 <script>
-  const API = "http://localhost:8000";
-  const dropZone  = document.getElementById("drop-zone");
-  const fileInput = document.getElementById("file-input");
-  const uploadBtn = document.getElementById("upload-btn");
-  const selFile   = document.getElementById("selected-file");
-  const statusEl  = document.getElementById("status");
-  const resultBox = document.getElementById("result-box");
-  const metaRow   = document.getElementById("meta-row");
-  const textOut   = document.getElementById("text-output");
-  const docList   = document.getElementById("doc-list");
+const API = "http://localhost:8000";
 
-  let selectedFile = null;
+// ── Upload ────────────────────────────────────────────────────────────────────
+const dropZone  = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+const uploadBtn = document.getElementById("upload-btn");
+const selFile   = document.getElementById("selected-file");
+const upStatus  = document.getElementById("upload-status");
+const upResult  = document.getElementById("upload-result");
+const upMeta    = document.getElementById("upload-meta");
+const upText    = document.getElementById("upload-text");
 
-  // ── File selection ──────────────────────────────────────────────
-  dropZone.addEventListener("click", () => fileInput.click());
-  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
-  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
-  dropZone.addEventListener("drop", e => {
-    e.preventDefault(); dropZone.classList.remove("dragover");
-    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+let selectedFile = null;
 
-  function setFile(f) {
-    selectedFile = f;
-    selFile.textContent = `Selected: ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault(); dropZone.classList.remove("dragover");
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  selectedFile = f;
+  selFile.textContent = `Selected: ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+  uploadBtn.disabled = false;
+  upStatus.textContent = "";
+  upResult.style.display = "none";
+}
+
+function setStatus(el, msg, type) {
+  el.textContent = msg;
+  el.className = `status-${type}`;
+}
+
+uploadBtn.addEventListener("click", async () => {
+  if (!selectedFile) return;
+  uploadBtn.disabled = true;
+  setStatus(upStatus, "Uploading and running local OCR… please wait.", "info");
+  upResult.style.display = "none";
+
+  const form = new FormData();
+  form.append("file", selectedFile);
+
+  try {
+    const res  = await fetch(`${API}/upload`, { method:"POST", body:form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+    setStatus(upStatus, `✓ Done — ${data.total_pages} page(s), ${data.chunks_stored} chunks stored.`, "success");
+
+    upMeta.innerHTML = [
+      `<span class="chip">📄 ${data.original_filename}</span>`,
+      `<span class="chip">🌐 ${data.dominant_language}</span>`,
+      `<span class="chip">📑 ${data.total_pages} page(s)</span>`,
+      `<span class="chip">🧩 ${data.chunks_stored} chunks</span>`,
+    ].join("");
+
+    upText.textContent = data.full_text || "(No text detected)";
+    upResult.style.display = "block";
+
+    loadDocs();
+    populateFileFilter();
+  } catch (err) {
+    setStatus(upStatus, "✗ " + err.message, "error");
+  } finally {
     uploadBtn.disabled = false;
-    statusEl.textContent = "";
-    resultBox.style.display = "none";
   }
+});
 
-  // ── Upload & OCR ─────────────────────────────────────────────────
-  uploadBtn.addEventListener("click", async () => {
-    if (!selectedFile) return;
+// ── Search ────────────────────────────────────────────────────────────────────
+const searchInput = document.getElementById("search-input");
+const searchBtn   = document.getElementById("search-btn");
+const searchStat  = document.getElementById("search-status");
+const searchRes   = document.getElementById("search-result");
+const answerBox   = document.getElementById("answer-box");
+const sourcesList = document.getElementById("sources-list");
 
-    uploadBtn.disabled = true;
-    setStatus("Uploading and running local OCR… this may take a moment.", "info");
-    resultBox.style.display = "none";
+searchBtn.addEventListener("click", doSearch);
+searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
 
-    const form = new FormData();
-    form.append("file", selectedFile);
+async function doSearch() {
+  const query = searchInput.value.trim();
+  if (!query) return;
 
-    try {
-      const res = await fetch(`${API}/upload`, { method: "POST", body: form });
-      const data = await res.json();
+  searchBtn.disabled = true;
+  setStatus(searchStat, "Searching and generating answer…", "info");
+  searchRes.style.display = "none";
 
-      if (!res.ok) throw new Error(data.detail || "Upload failed");
+  const payload = {
+    query,
+    language : document.getElementById("f-language").value,
+    doc_type : document.getElementById("f-doctype").value,
+    filename : document.getElementById("f-filename").value,
+  };
 
-      setStatus(`✓ OCR complete — ${data.total_pages} page(s) processed.`, "success");
+  try {
+    const res  = await fetch(`${API}/search`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Search failed");
 
-      // Build meta chips
-      metaRow.innerHTML = [
-        `<span class="meta-chip">📄 ${data.original_filename}</span>`,
-        `<span class="meta-chip">🌐 ${data.dominant_language}</span>`,
-        `<span class="meta-chip">📑 ${data.total_pages} page(s)</span>`,
-        `<span class="meta-chip">🕒 ${data.upload_date.slice(0,19).replace("T"," ")} UTC</span>`,
-      ].join("");
+    setStatus(searchStat, `✓ Answer generated from ${data.chunks_used} source chunk(s).`, "success");
 
-      textOut.textContent = data.full_text || "(No text detected)";
-      resultBox.style.display = "block";
+    answerBox.textContent = data.answer;
 
-      loadDocs();
-    } catch (err) {
-      setStatus("✗ " + err.message, "error");
-    } finally {
-      uploadBtn.disabled = false;
+    sourcesList.innerHTML = data.sources.map((s, i) => `
+      <div class="source-card">
+        <div class="source-meta">
+          Source ${i+1} — <strong>${s.metadata.original_filename}</strong>
+          · Page ${s.metadata.page_number}
+          · ${s.metadata.dominant_language}
+          <span class="score-badge">score: ${s.score}</span>
+        </div>
+        <div class="source-text">${s.text.slice(0, 300)}${s.text.length > 300 ? "…" : ""}</div>
+      </div>
+    `).join("");
+
+    searchRes.style.display = "block";
+  } catch (err) {
+    setStatus(searchStat, "✗ " + err.message, "error");
+  } finally {
+    searchBtn.disabled = false;
+    searchBtn.style.background = "#1a1a2e";
+  }
+}
+
+// ── Documents list ────────────────────────────────────────────────────────────
+const docList = document.getElementById("doc-list");
+
+async function loadDocs() {
+  docList.innerHTML = "<li style='color:#aaa'>Loading…</li>";
+  try {
+    const res  = await fetch(`${API}/documents`);
+    const data = await res.json();
+    if (data.total === 0) {
+      docList.innerHTML = "<li style='color:#aaa'>No documents uploaded yet.</li>";
+      return;
     }
-  });
-
-  function setStatus(msg, type) {
-    statusEl.textContent = msg;
-    statusEl.className = `status-${type}`;
+    docList.innerHTML = data.documents.map(d => `
+      <li>
+        <span class="doc-name">${d.original_filename}</span>
+        <span class="doc-meta">${d.dominant_language} · ${d.doc_type} · ${d.upload_date.slice(0,10)}</span>
+      </li>
+    `).join("");
+  } catch {
+    docList.innerHTML = "<li style='color:#dc2626'>Could not load documents.</li>";
   }
+}
 
-  // ── Document list ─────────────────────────────────────────────────
-  async function loadDocs() {
-    docList.innerHTML = "<li style='color:#aaa'>Loading...</li>";
-    try {
-      const res  = await fetch(`${API}/documents`);
-      const data = await res.json();
-      if (data.total === 0) {
-        docList.innerHTML = "<li style='color:#aaa'>No documents uploaded yet.</li>";
-        return;
+async function populateFileFilter() {
+  try {
+    const res  = await fetch(`${API}/documents`);
+    const data = await res.json();
+    const sel  = document.getElementById("f-filename");
+    // Keep "Any" option, add document names
+    const existing = [...sel.options].map(o => o.value);
+    data.documents.forEach(d => {
+      if (!existing.includes(d.original_filename)) {
+        const opt = document.createElement("option");
+        opt.value = d.original_filename;
+        opt.textContent = d.original_filename;
+        sel.appendChild(opt);
       }
-      docList.innerHTML = data.documents.map(d => `
-        <li>
-          <span class="doc-name">${d.filename}</span>
-          <span class="doc-meta">${d.size_kb} KB · ${d.uploaded_at.slice(0,19).replace("T"," ")} UTC</span>
-        </li>
-      `).join("");
-    } catch {
-      docList.innerHTML = "<li style='color:#dc2626'>Could not load documents.</li>";
-    }
-  }
+    });
+  } catch {}
+}
 
-  document.getElementById("refresh-btn").addEventListener("click", loadDocs);
-  loadDocs();
+document.getElementById("refresh-btn").addEventListener("click", () => { loadDocs(); populateFileFilter(); });
+loadDocs();
+populateFileFilter();
 </script>
 </body>
 </html>

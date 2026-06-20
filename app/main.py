@@ -14,10 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from pydantic import BaseModel
 from app.ocr      import process_file
 from app.chunker  import chunk_pages
 from app.embedder import embed_texts
 from app.database import store_chunks, list_documents, get_collection
+from app.rag      import search_and_answer
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 UPLOAD_DIR = Path("uploads")
@@ -131,3 +133,35 @@ async def upload_document(file: UploadFile = File(...)):
 def documents():
     docs = list_documents()
     return {"total": len(docs), "documents": docs}
+
+
+# ── Search request schema ─────────────────────────────────────────────────────
+class SearchRequest(BaseModel):
+    query:    str
+    language: str = "any"   # "bangla" | "english" | "mixed" | "any"
+    doc_type: str = "any"   # "pdf" | "image" | "any"
+    filename: str = "any"   # original filename or "any"
+
+
+# ── RAG Search endpoint ───────────────────────────────────────────────────────
+@app.post("/search")
+def search(req: SearchRequest):
+    """
+    Hybrid search: vector similarity + optional metadata filters.
+    Returns a Gemini-generated answer grounded in uploaded documents.
+    """
+    if not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    print(f"\n[SEARCH] Query: '{req.query}'")
+    print(f"[SEARCH] Filters — language: {req.language} | doc_type: {req.doc_type} | file: {req.filename}")
+
+    result = search_and_answer(
+        query    = req.query,
+        language = req.language,
+        doc_type = req.doc_type,
+        filename = req.filename,
+    )
+
+    print(f"[SEARCH] Returned {result['chunks_used']} chunks to Gemini.")
+    return result
