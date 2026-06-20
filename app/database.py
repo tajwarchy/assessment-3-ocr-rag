@@ -27,6 +27,7 @@ Metadata fields:
 
 import chromadb
 from chromadb.config import Settings
+from datetime import datetime
 
 CHROMA_DIR      = "chroma_db"
 COLLECTION_NAME = "documents"
@@ -71,6 +72,12 @@ def store_chunks(
 
     ids, docs, metas, embeds = [], [], [], []
 
+    # Parse upload_date once into a numeric timestamp for range filtering
+    try:
+        upload_ts = datetime.fromisoformat(upload_date).timestamp()
+    except ValueError:
+        upload_ts = datetime.utcnow().timestamp()
+
     for chunk, emb in zip(chunks, embeddings):
         chunk_id = (
             f"{stored_filename}"
@@ -87,6 +94,7 @@ def store_chunks(
             "chunk_index":       chunk["chunk_index"],
             "dominant_language": dominant_language,
             "upload_date":       upload_date,
+            "upload_timestamp":  upload_ts,
             "doc_type":          doc_type,
             "ocr_confidence":    chunk["ocr_confidence"],
         })

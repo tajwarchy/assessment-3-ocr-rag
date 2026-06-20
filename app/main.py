@@ -137,10 +137,12 @@ def documents():
 
 # ── Search request schema ─────────────────────────────────────────────────────
 class SearchRequest(BaseModel):
-    query:    str
-    language: str = "any"   # "bangla" | "english" | "mixed" | "any"
-    doc_type: str = "any"   # "pdf" | "image" | "any"
-    filename: str = "any"   # original filename or "any"
+    query:     str
+    language:  str = "any"   # "bangla" | "english" | "mixed" | "any"
+    doc_type:  str = "any"   # "pdf" | "image" | "any"
+    filename:  str = "any"   # original filename or "any"
+    date_from: str = ""      # "YYYY-MM-DD" or ""
+    date_to:   str = ""      # "YYYY-MM-DD" or ""
 
 
 # ── RAG Search endpoint ───────────────────────────────────────────────────────
@@ -157,10 +159,12 @@ def search(req: SearchRequest):
     print(f"[SEARCH] Filters — language: {req.language} | doc_type: {req.doc_type} | file: {req.filename}")
 
     result = search_and_answer(
-        query    = req.query,
-        language = req.language,
-        doc_type = req.doc_type,
-        filename = req.filename,
+        query     = req.query,
+        language  = req.language,
+        doc_type  = req.doc_type,
+        filename  = req.filename,
+        date_from = req.date_from or None,
+        date_to   = req.date_to or None,
     )
 
     print(f"[SEARCH] Returned {result['chunks_used']} chunks to Gemini.")

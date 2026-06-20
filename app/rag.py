@@ -7,6 +7,7 @@ and generates an answer using Gemini API.
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+from datetime import datetime
 from app.embedder import embed_query
 from app.database import query_chunks
 
@@ -22,6 +23,8 @@ def build_where_filter(
     language  = None,
     doc_type  = None,
     filename  = None,
+    date_from = None,
+    date_to   = None,
 ) -> dict | None:
     """
     Build a ChromaDB metadata filter dict from user-supplied filters.
@@ -35,6 +38,18 @@ def build_where_filter(
         conditions.append({"doc_type": {"$eq": doc_type}})
     if filename and filename != "any":
         conditions.append({"original_filename": {"$eq": filename}})
+    if date_from:
+        try:
+            ts_from = datetime.fromisoformat(date_from).timestamp()
+            conditions.append({"upload_timestamp": {"$gte": ts_from}})
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            ts_to = datetime.fromisoformat(date_to + "T23:59:59").timestamp()
+            conditions.append({"upload_timestamp": {"$lte": ts_to}})
+        except ValueError:
+            pass
 
     if not conditions:
         return None
@@ -48,6 +63,8 @@ def search_and_answer(
     language  = None,
     doc_type  = None,
     filename  = None,
+    date_from = None,
+    date_to   = None,
 ) -> dict:
     """
     Full RAG pipeline:
@@ -62,7 +79,10 @@ def search_and_answer(
     q_embedding = embed_query(query)
 
     # 2. Build metadata filter
-    where = build_where_filter(language=language, doc_type=doc_type, filename=filename)
+    where = build_where_filter(
+        language=language, doc_type=doc_type, filename=filename,
+        date_from=date_from, date_to=date_to,
+    )
 
     # 3. Retrieve chunks
     chunks = query_chunks(

@@ -122,6 +122,12 @@
           <option value="any">Any</option>
         </select>
       </label>
+      <label>From Date
+        <input type="date" id="f-date-from" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem"/>
+      </label>
+      <label>To Date
+        <input type="date" id="f-date-to" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem"/>
+      </label>
     </div>
 
     <input type="text" id="search-input" placeholder="Ask a question about your documents… (Bangla or English)"/>
@@ -239,6 +245,8 @@ async function doSearch() {
     language : document.getElementById("f-language").value,
     doc_type : document.getElementById("f-doctype").value,
     filename : document.getElementById("f-filename").value,
+    date_from: document.getElementById("f-date-from").value,
+    date_to  : document.getElementById("f-date-to").value,
   };
 
   try {
@@ -250,7 +258,7 @@ async function doSearch() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Search failed");
 
-    setStatus(searchStat, `✓ Answer generated from ${data.chunks_used} source chunk(s).`, "success");
+    setStatus(searchStat, `✓ Answer generated from ${data.chunks_used} source chunk(s).${data.filters_applied ? " (filters applied)" : ""}`, "success");
 
     answerBox.textContent = data.answer;
 
