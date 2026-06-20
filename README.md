@@ -155,11 +155,29 @@ GEMINI_API_KEY=your_actual_key_here
 
 ### 7. Run the Application
 
+**Option A — Local (Python venv):**
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open your browser to **http://localhost:8000**
+**Option B — Docker (recommended for reproducibility):**
+
+First-time Docker setup:
+1. Download Docker Desktop from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) and install it
+2. Open Docker Desktop once so the background engine is running
+3. Verify: `docker --version`
+
+Then, with your `.env` file already configured (Step 6 above):
+```bash
+docker compose up --build
+```
+
+This builds a container with Tesseract (+ Bangla language pack), poppler, and all Python dependencies pre-installed — no manual system setup needed inside the container. Uploaded files and the vector database persist locally via mounted volumes (`uploads/` and `chroma_db/`).
+
+To stop: `docker compose down`
+To view logs: `docker compose logs -f`
+
+Open your browser to **http://localhost:8000** (same for both options)
 
 ---
 
@@ -188,6 +206,9 @@ assessment-3-ocr-rag/
 ├── chroma_db/              # Persistent vector store (gitignored)
 ├── index.html              # Frontend UI
 ├── test_ocr.py              # Standalone OCR test script
+├── Dockerfile                # Container image definition
+├── docker-compose.yml          # Container orchestration
+├── .dockerignore
 ├── requirements.txt
 ├── .env.example
 └── README.md

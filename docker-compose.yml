@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  ocr-rag-app:
+    build: .
+    container_name: ocr-rag-system
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist uploaded files and vector DB outside the container
+      - ./uploads:/app/uploads
+      - ./chroma_db:/app/chroma_db
+    env_file:
+      - .env
+    restart: unless-stopped

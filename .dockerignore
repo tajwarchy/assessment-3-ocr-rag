@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+uploads/
+chroma_db/
+test_sample.png
+.git/
+.gitignore
+README.md
+test_ocr.py
