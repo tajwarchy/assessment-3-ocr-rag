@@ -15,6 +15,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download the embedding model at build time so it's baked into the image
+# (avoids a slow first-request download when the container starts)
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
+
 # Copy application code
 COPY app/ ./app/
 COPY index.html .
