@@ -232,3 +232,7 @@ assessment-3-ocr-rag/
 - Tesseract accuracy degrades on handwritten or heavily stylized Bangla fonts
 - Language detection is based on Unicode character ratio, not a dedicated language-ID model — generally reliable for clearly Bangla or English text, less precise for heavily mixed content
 - No OCR confidence-based rejection — low-confidence pages are still chunked and stored
+
+##Demo Video
+
+https://www.youtube.com/watch?v=dLnvq4oBE1w  
